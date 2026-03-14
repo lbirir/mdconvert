@@ -71,6 +71,21 @@ Then visit `http://localhost:8080`
 3. Preview the markdown or view raw output
 4. Download the converted markdown file
 
+## Libraries Used
+
+### Backend
+| Library | Version | Purpose |
+|---|---|---|
+| [FastAPI](https://fastapi.tiangolo.com/) | 0.104.1 | Web framework for the REST API |
+| [Uvicorn](https://www.uvicorn.org/) | 0.24.0 | ASGI server to run FastAPI |
+| [MarkItDown](https://github.com/microsoft/markitdown) | 0.0.1a3 | Microsoft library that converts documents, images, audio & video to Markdown |
+| [python-multipart](https://github.com/Kludex/python-multipart) | 0.0.6 | Parses multipart file uploads |
+
+### Frontend
+| Library | Version | Purpose |
+|---|---|---|
+| [marked.js](https://marked.js.org/) | latest (CDN) | Renders raw Markdown as HTML for the live preview |
+
 ## Project Structure
 
 ```
