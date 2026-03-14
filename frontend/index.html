@@ -1,0 +1,1063 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document to Markdown Converter</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #667eea;
+            --primary-dark: #5568d3;
+            --secondary: #764ba2;
+            --success: #48bb78;
+            --success-dark: #38a169;
+            --error: #c53030;
+            --error-bg: #fed7d7;
+            --bg-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --card-bg: white;
+            --text-primary: #333;
+            --text-secondary: #666;
+            --text-muted: #999;
+            --border: #e0e0e0;
+            --panel-bg: #f8f9fa;
+        }
+
+        body.dark-mode {
+            --bg-gradient: linear-gradient(135deg, #1a1c2e 0%, #2d1b4e 100%);
+            --card-bg: #1e1e2e;
+            --text-primary: #e0e0e0;
+            --text-secondary: #a0a0a0;
+            --text-muted: #666;
+            --border: #333;
+            --panel-bg: #252535;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: var(--bg-gradient);
+            min-height: 100vh;
+            padding: 40px 20px;
+            color: var(--text-primary);
+            transition: all 0.3s;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 40px;
+        }
+
+        h1 {
+            color: white;
+            font-size: 2.5rem;
+        }
+
+        .theme-toggle {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            color: white;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: all 0.3s;
+        }
+
+        .theme-toggle:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        .upload-zone {
+            background: var(--card-bg);
+            border-radius: 16px;
+            padding: 60px 40px;
+            text-align: center;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+            cursor: pointer;
+            transition: transform 0.3s, box-shadow 0.3s;
+            border: 3px dashed var(--primary);
+        }
+
+        .upload-zone:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 30px 80px rgba(0,0,0,0.3);
+        }
+
+        .upload-zone.dragover {
+            border-color: var(--secondary);
+            background: rgba(102, 126, 234, 0.1);
+        }
+
+        .upload-icon {
+            font-size: 4rem;
+            margin-bottom: 20px;
+        }
+
+        .upload-text {
+            font-size: 1.2rem;
+            color: var(--text-secondary);
+            margin-bottom: 10px;
+        }
+
+        .upload-hint {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            margin-bottom: 15px;
+        }
+
+        .file-info {
+            display: none;
+            margin-top: 20px;
+            padding: 15px;
+            background: var(--panel-bg);
+            border-radius: 8px;
+            text-align: left;
+        }
+
+        .file-info.visible {
+            display: block;
+        }
+
+        .file-info-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+        }
+
+        .file-info-label {
+            color: var(--text-secondary);
+        }
+
+        .file-info-value {
+            font-weight: 600;
+        }
+
+        #fileInput {
+            display: none;
+        }
+
+        .supported-formats {
+            margin-top: 30px;
+            padding: 15px;
+            background: var(--panel-bg);
+            border-radius: 8px;
+        }
+
+        .supported-formats h3 {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+        }
+
+        .formats-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            justify-content: center;
+        }
+
+        .format-tag {
+            background: var(--primary);
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+        }
+
+        .progress-container {
+            display: none;
+            margin-top: 20px;
+        }
+
+        .progress-container.visible {
+            display: block;
+        }
+
+        .progress-bar {
+            height: 8px;
+            background: var(--border);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 10px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: var(--primary);
+            width: 0%;
+            transition: width 0.3s;
+        }
+
+        .progress-text {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+
+        .result-section {
+            display: none;
+            margin-top: 40px;
+            background: var(--card-bg);
+            border-radius: 16px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+        }
+
+        .result-header {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid var(--border);
+            gap: 15px;
+        }
+
+        .result-header h2 {
+            color: var(--text-primary);
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-dark);
+        }
+
+        .btn-success {
+            background: var(--success);
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: var(--success-dark);
+        }
+
+        .btn-secondary {
+            background: var(--panel-bg);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+        }
+
+        .btn-secondary:hover {
+            background: var(--border);
+        }
+
+        .view-mode-group {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 16px;
+            background: var(--panel-bg);
+            padding: 4px;
+            border-radius: 10px;
+            width: fit-content;
+        }
+
+        .view-mode-btn {
+            padding: 8px 18px;
+            background: transparent;
+            border: none;
+            border-radius: 7px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+
+        .view-mode-btn.active {
+            background: var(--card-bg);
+            color: var(--text-primary);
+            font-weight: 600;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.12);
+        }
+
+        .preview-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            min-height: 500px;
+        }
+
+        .preview-container.single {
+            grid-template-columns: 1fr;
+        }
+
+        .preview-panel {
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            padding: 20px;
+            overflow: auto;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .preview-panel h3 {
+            margin-bottom: 15px;
+            color: var(--text-secondary);
+            font-size: 1rem;
+        }
+
+        #markdownOutput {
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 0.9rem;
+            white-space: pre-wrap;
+            background: var(--panel-bg);
+            padding: 15px;
+            border-radius: 8px;
+            flex: 1;
+            overflow: auto;
+        }
+
+        #previewOutput {
+            flex: 1;
+            line-height: 1.6;
+            overflow: auto;
+        }
+
+        #previewOutput h1, #previewOutput h2, #previewOutput h3 {
+            margin-top: 1em;
+            margin-bottom: 0.5em;
+            color: var(--text-primary);
+        }
+
+        #previewOutput code {
+            background: var(--panel-bg);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+
+        #previewOutput pre {
+            background: var(--panel-bg);
+            padding: 15px;
+            border-radius: 8px;
+            overflow-x: auto;
+        }
+
+        #previewOutput blockquote {
+            border-left: 4px solid var(--primary);
+            padding-left: 15px;
+            color: var(--text-secondary);
+            margin: 1em 0;
+        }
+
+        #previewOutput ul, #previewOutput ol {
+            margin-left: 1.5em;
+            margin-bottom: 1em;
+        }
+
+        #previewOutput table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 1em 0;
+        }
+
+        #previewOutput th, #previewOutput td {
+            border: 1px solid var(--border);
+            padding: 8px 12px;
+            text-align: left;
+        }
+
+        #previewOutput th {
+            background: var(--panel-bg);
+            font-weight: 600;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 40px;
+        }
+
+        .loading.visible {
+            display: block;
+        }
+
+        .spinner {
+            border: 4px solid var(--border);
+            border-top: 4px solid var(--primary);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .toast {
+            padding: 15px 20px;
+            border-radius: 8px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            animation: slideIn 0.3s ease;
+            min-width: 300px;
+        }
+
+        .toast-success {
+            background: var(--success);
+            color: white;
+        }
+
+        .toast-error {
+            background: var(--error);
+            color: white;
+        }
+
+        .toast-info {
+            background: var(--primary);
+            color: white;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .conversion-stats {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            margin-bottom: 16px;
+        }
+
+        .stat-badge {
+            background: var(--panel-bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 6px 14px;
+            font-size: 0.82rem;
+            color: var(--text-secondary);
+        }
+
+        .stat-badge span {
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .select-file-btn {
+            display: inline-block;
+            margin-top: 16px;
+            padding: 12px 28px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .select-file-btn:hover {
+            background: var(--primary-dark);
+        }
+
+        .recent-section {
+            margin-top: 40px;
+            background: var(--card-bg);
+            border-radius: 16px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+        }
+
+        .recent-section h2 {
+            color: var(--text-primary);
+            margin-bottom: 20px;
+        }
+
+        .recent-list {
+            display: grid;
+            gap: 10px;
+        }
+
+        .recent-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            background: var(--panel-bg);
+            border-radius: 8px;
+            transition: transform 0.2s;
+        }
+
+        .recent-item:hover {
+            transform: translateX(5px);
+        }
+
+        .recent-info {
+            flex: 1;
+        }
+
+        .recent-name {
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .recent-time {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        .recent-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .recent-btn {
+            padding: 8px 16px;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+        }
+
+        .recent-btn-download {
+            background: var(--primary);
+            color: white;
+        }
+
+        .recent-btn-delete {
+            background: transparent;
+            color: var(--error);
+            border: 1px solid var(--error);
+        }
+
+        .recent-btn-delete:hover {
+            background: var(--error);
+            color: white;
+        }
+
+        .empty-recent {
+            color: var(--text-muted);
+            text-align: center;
+            padding: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .preview-container {
+                grid-template-columns: 1fr;
+                min-height: auto;
+            }
+
+            .header {
+                flex-direction: column;
+                gap: 15px;
+            }
+
+            h1 {
+                font-size: 1.8rem;
+            }
+
+            .result-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .btn-group {
+                width: 100%;
+            }
+
+            .btn {
+                flex: 1;
+                justify-content: center;
+            }
+
+            .recent-item {
+                flex-direction: column;
+                gap: 15px;
+                align-items: flex-start;
+            }
+
+            .recent-actions {
+                width: 100%;
+            }
+
+            .recent-btn {
+                flex: 1;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📄 Document to Markdown Converter</h1>
+            <button class="theme-toggle" id="themeToggle" title="Toggle dark mode">
+                🌙 Dark Mode
+            </button>
+        </div>
+
+        <div class="upload-zone" id="uploadZone">
+            <div class="upload-icon">📤</div>
+            <div class="upload-text">Drag & drop your document here</div>
+            <div class="upload-hint">or use the button below (Ctrl+V to paste)</div>
+            <button class="select-file-btn" id="selectFileBtn">Select File</button>
+            <input type="file" id="fileInput" accept=".docx,.doc,.pdf,.pptx,.html,.htm,.epub,.odt,.rtf">
+
+            <div class="file-info" id="fileInfo">
+                <div class="file-info-row">
+                    <span class="file-info-label">File Name:</span>
+                    <span class="file-info-value" id="fileName"></span>
+                </div>
+                <div class="file-info-row">
+                    <span class="file-info-label">File Size:</span>
+                    <span class="file-info-value" id="fileSize"></span>
+                </div>
+                <div class="file-info-row">
+                    <span class="file-info-label">File Type:</span>
+                    <span class="file-info-value" id="fileType"></span>
+                </div>
+            </div>
+
+            <div class="progress-container" id="progressContainer">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+                <div class="progress-text" id="progressText">Uploading... 0%</div>
+            </div>
+
+            <div class="supported-formats">
+                <h3>Supported Formats</h3>
+                <div class="formats-list">
+                    <span class="format-tag">DOCX</span>
+                    <span class="format-tag">DOC</span>
+                    <span class="format-tag">PDF</span>
+                    <span class="format-tag">PPTX</span>
+                    <span class="format-tag">HTML</span>
+                    <span class="format-tag">EPUB</span>
+                    <span class="format-tag">ODT</span>
+                    <span class="format-tag">RTF</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>Converting your document...</p>
+        </div>
+
+        <div class="toast-container" id="toastContainer"></div>
+
+        <div class="result-section" id="resultSection">
+            <div class="result-header">
+                <h2>✅ Conversion Complete</h2>
+                <div class="btn-group">
+                    <button class="btn btn-success" id="downloadBtn">
+                        ⬇️ Download
+                    </button>
+                    <button class="btn btn-primary" id="copyBtn">
+                        📋 Copy
+                    </button>
+                    <button class="btn btn-secondary" id="convertAnother">
+                        🔄 Convert Another
+                    </button>
+                </div>
+            </div>
+
+            <div class="conversion-stats" id="conversionStats">
+                <div class="stat-badge">Words: <span id="statWords">—</span></div>
+                <div class="stat-badge">Characters: <span id="statChars">—</span></div>
+                <div class="stat-badge">Lines: <span id="statLines">—</span></div>
+            </div>
+
+            <div class="view-mode-group">
+                <button class="view-mode-btn active" data-mode="split">⬛⬛ Side by Side</button>
+                <button class="view-mode-btn" data-mode="preview">👁 Preview</button>
+                <button class="view-mode-btn" data-mode="raw">{ } Raw</button>
+            </div>
+
+            <div class="preview-container" id="previewContainer">
+                <div class="preview-panel" id="previewPanel">
+                    <h3>Live Preview</h3>
+                    <div id="previewOutput"></div>
+                </div>
+                <div class="preview-panel" id="markdownPanel">
+                    <h3>Raw Markdown</h3>
+                    <div id="markdownOutput"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="recent-section" id="recentSection" style="display: none;">
+            <h2>📜 Recent Conversions</h2>
+            <div class="recent-list" id="recentList"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:8000';
+
+        const uploadZone = document.getElementById('uploadZone');
+        const fileInput = document.getElementById('fileInput');
+        const selectFileBtn = document.getElementById('selectFileBtn');
+        const fileInfo = document.getElementById('fileInfo');
+        const fileName = document.getElementById('fileName');
+        const fileSize = document.getElementById('fileSize');
+        const fileType = document.getElementById('fileType');
+        const progressContainer = document.getElementById('progressContainer');
+        const progressFill = document.getElementById('progressFill');
+        const progressText = document.getElementById('progressText');
+        const loading = document.getElementById('loading');
+        const resultSection = document.getElementById('resultSection');
+        const toastContainer = document.getElementById('toastContainer');
+        const markdownOutput = document.getElementById('markdownOutput');
+        const previewOutput = document.getElementById('previewOutput');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const copyBtn = document.getElementById('copyBtn');
+        const convertAnother = document.getElementById('convertAnother');
+        const viewModeBtns = document.querySelectorAll('.view-mode-btn');
+        const previewContainer = document.getElementById('previewContainer');
+        const previewPanel = document.getElementById('previewPanel');
+        const markdownPanel = document.getElementById('markdownPanel');
+        const recentList = document.getElementById('recentList');
+        const recentSection = document.getElementById('recentSection');
+        const themeToggle = document.getElementById('themeToggle');
+        const statWords = document.getElementById('statWords');
+        const statChars = document.getElementById('statChars');
+        const statLines = document.getElementById('statLines');
+
+        const ALLOWED_EXTENSIONS = ['.docx', '.doc', '.pdf', '.pptx', '.html', '.htm', '.epub', '.odt', '.rtf'];
+        const MAX_FILE_SIZE = 50 * 1024 * 1024;
+
+        let currentMarkdown = '';
+        let currentFilename = '';
+        let recentConversions = JSON.parse(localStorage.getItem('recentConversions') || '[]');
+
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        function getFileExtension(filename) {
+            return '.' + filename.split('.').pop().toLowerCase();
+        }
+
+        function showToast(message, type = 'info') {
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            toast.textContent = message;
+            toastContainer.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        }
+
+        function updateTheme() {
+            const isDark = document.body.classList.contains('dark-mode');
+            themeToggle.textContent = isDark ? '☀️ Light Mode' : '🌙 Dark Mode';
+        }
+
+        themeToggle.addEventListener('click', () => {
+            document.body.classList.toggle('dark-mode');
+            updateTheme();
+            localStorage.setItem('darkMode', document.body.classList.contains('dark-mode'));
+        });
+
+        if (localStorage.getItem('darkMode') === 'true') {
+            document.body.classList.add('dark-mode');
+            updateTheme();
+        }
+
+        uploadZone.addEventListener('click', (e) => {
+            if (e.target === selectFileBtn || e.target === uploadZone ||
+                e.target.classList.contains('upload-icon') ||
+                e.target.classList.contains('upload-text') ||
+                e.target.classList.contains('upload-hint')) {
+                fileInput.click();
+            }
+        });
+        selectFileBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            fileInput.click();
+        });
+        uploadZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadZone.classList.add('dragover');
+        });
+        uploadZone.addEventListener('dragleave', () => {
+            uploadZone.classList.remove('dragover');
+        });
+        uploadZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadZone.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length) handleFile(files[0]);
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length) handleFile(e.target.files[0]);
+        });
+
+        document.addEventListener('paste', (e) => {
+            const items = e.clipboardData?.items;
+            if (!items) return;
+            for (let item of items) {
+                if (item.type.startsWith('image/') || item.type.includes('pdf') || item.type.includes('msword')) {
+                    const file = item.getAsFile();
+                    if (file) {
+                        handleFile(file);
+                        break;
+                    }
+                }
+            }
+        });
+
+        function validateFile(file) {
+            const ext = getFileExtension(file.name);
+            if (!ALLOWED_EXTENSIONS.includes(ext)) {
+                showToast(`Unsupported file type: ${ext}`, 'error');
+                return false;
+            }
+            if (file.size > MAX_FILE_SIZE) {
+                showToast(`File too large. Max size: ${formatFileSize(MAX_FILE_SIZE)}`, 'error');
+                return false;
+            }
+            return true;
+        }
+
+        function showFileInfo(file) {
+            fileName.textContent = file.name;
+            fileSize.textContent = formatFileSize(file.size);
+            fileType.textContent = getFileExtension(file.name).toUpperCase();
+            fileInfo.classList.add('visible');
+        }
+
+        function clearFileInfo() {
+            fileInfo.classList.remove('visible');
+            progressContainer.classList.remove('visible');
+        }
+
+        function updateProgress(percent) {
+            progressContainer.classList.add('visible');
+            progressFill.style.width = percent + '%';
+            progressText.textContent = `Uploading... ${Math.round(percent)}%`;
+        }
+
+        function renderRecentList() {
+            if (recentConversions.length === 0) {
+                recentSection.style.display = 'none';
+                return;
+            }
+            recentSection.style.display = 'block';
+            recentList.innerHTML = recentConversions.map((item, index) => `
+                <div class="recent-item">
+                    <div class="recent-info">
+                        <div class="recent-name">${item.filename}</div>
+                        <div class="recent-time">${new Date(item.timestamp).toLocaleString()}</div>
+                    </div>
+                    <div class="recent-actions">
+                        <button class="recent-btn recent-btn-download" data-index="${index}">Download</button>
+                        <button class="recent-btn recent-btn-delete" data-index="${index}">Remove</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function addToRecent(filename, markdown) {
+            recentConversions.unshift({
+                filename,
+                markdown,
+                timestamp: Date.now()
+            });
+            if (recentConversions.length > 10) recentConversions.pop();
+            localStorage.setItem('recentConversions', JSON.stringify(recentConversions));
+            renderRecentList();
+        }
+
+        recentList.addEventListener('click', (e) => {
+            const index = parseInt(e.target.dataset.index);
+            if (e.target.classList.contains('recent-btn-download')) {
+                const item = recentConversions[index];
+                const blob = new Blob([item.markdown], { type: 'text/markdown' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = item.filename;
+                a.click();
+                URL.revokeObjectURL(url);
+                showToast('Download started', 'success');
+            } else if (e.target.classList.contains('recent-btn-delete')) {
+                recentConversions.splice(index, 1);
+                localStorage.setItem('recentConversions', JSON.stringify(recentConversions));
+                renderRecentList();
+                showToast('Removed from recent', 'info');
+            }
+        });
+
+        renderRecentList();
+
+        function updateStats(markdown) {
+            const words = markdown.trim() ? markdown.trim().split(/\s+/).length : 0;
+            const chars = markdown.length;
+            const lines = markdown.split('\n').length;
+            statWords.textContent = words.toLocaleString();
+            statChars.textContent = chars.toLocaleString();
+            statLines.textContent = lines.toLocaleString();
+        }
+
+        async function handleFile(file) {
+            if (!validateFile(file)) return;
+
+            showFileInfo(file);
+            loading.classList.add('visible');
+            resultSection.style.display = 'none';
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const xhr = new XMLHttpRequest();
+                xhr.open('POST', `${API_URL}/convert`, true);
+
+                xhr.upload.addEventListener('progress', (e) => {
+                    if (e.lengthComputable) {
+                        updateProgress((e.loaded / e.total) * 100);
+                    }
+                });
+
+                xhr.addEventListener('load', () => {
+                    if (xhr.status >= 200 && xhr.status < 300) {
+                        const data = JSON.parse(xhr.responseText);
+                        currentMarkdown = data.markdown;
+                        currentFilename = data.filename;
+
+                        markdownOutput.textContent = currentMarkdown;
+                        previewOutput.innerHTML = marked.parse(currentMarkdown);
+                        updateStats(currentMarkdown);
+
+                        loading.classList.remove('visible');
+                        clearFileInfo();
+                        resultSection.style.display = 'block';
+                        resultSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        addToRecent(currentFilename, currentMarkdown);
+                        showToast('Conversion complete!', 'success');
+                    } else {
+                        const error = JSON.parse(xhr.responseText);
+                        showToast(error.detail || 'Conversion failed', 'error');
+                        loading.classList.remove('visible');
+                    }
+                });
+
+                xhr.addEventListener('error', () => {
+                    showToast('Network error. Please try again.', 'error');
+                    loading.classList.remove('visible');
+                });
+
+                xhr.send(formData);
+
+            } catch (error) {
+                showToast(error.message || 'Conversion failed', 'error');
+                loading.classList.remove('visible');
+            }
+        }
+
+        downloadBtn.addEventListener('click', () => {
+            const blob = new Blob([currentMarkdown], { type: 'text/markdown' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = currentFilename;
+            a.click();
+            URL.revokeObjectURL(url);
+            showToast('Download started', 'success');
+        });
+
+        copyBtn.addEventListener('click', async () => {
+            try {
+                await navigator.clipboard.writeText(currentMarkdown);
+                showToast('Copied to clipboard!', 'success');
+            } catch (err) {
+                showToast('Failed to copy', 'error');
+            }
+        });
+
+        convertAnother.addEventListener('click', () => {
+            resultSection.style.display = 'none';
+            fileInput.value = '';
+            clearFileInfo();
+            uploadZone.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+
+        viewModeBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                viewModeBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+
+                const mode = btn.dataset.mode;
+                if (mode === 'split') {
+                    previewContainer.classList.remove('single');
+                    previewPanel.style.display = 'flex';
+                    markdownPanel.style.display = 'flex';
+                } else if (mode === 'preview') {
+                    previewContainer.classList.add('single');
+                    previewPanel.style.display = 'flex';
+                    markdownPanel.style.display = 'none';
+                } else {
+                    previewContainer.classList.add('single');
+                    previewPanel.style.display = 'none';
+                    markdownPanel.style.display = 'flex';
+                }
+            });
+        });
+    </script>
+</body>
+</html>
